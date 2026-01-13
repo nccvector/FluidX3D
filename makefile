@@ -60,35 +60,38 @@ temp/shapes.o: src/shapes.cpp src/shapes.hpp src/utilities.hpp make.sh
 # Shared Library Targets (C API)
 # ============================================================================
 
+# Library build flag - excludes main() and provides stubs
+LIB_FLAGS = -DFX3D_LIBRARY
+
 # Object file for C API wrapper
 temp/fluidx3d_c_api.o: src/fluidx3d_c_api.cpp src/fluidx3d.h src/defines.hpp src/lbm.hpp src/shapes.hpp src/units.hpp src/utilities.hpp make.sh
 	@mkdir -p temp
-	$(CC) -c src/fluidx3d_c_api.cpp -o temp/fluidx3d_c_api.o $(CFLAGS) -fPIC $(LDFLAGS_OPENCL)
+	$(CC) -c src/fluidx3d_c_api.cpp -o temp/fluidx3d_c_api.o $(CFLAGS) -fPIC $(LIB_FLAGS) $(LDFLAGS_OPENCL)
 
 # Shared library objects (with -fPIC)
 temp/graphics_pic.o: src/graphics.cpp src/defines.hpp src/graphics.hpp src/lodepng.hpp src/utilities.hpp make.sh
 	@mkdir -p temp
-	$(CC) -c src/graphics.cpp -o temp/graphics_pic.o $(CFLAGS) -fPIC $(LDFLAGS_X11)
+	$(CC) -c src/graphics.cpp -o temp/graphics_pic.o $(CFLAGS) -fPIC $(LIB_FLAGS) $(LDFLAGS_X11)
 
 temp/info_pic.o: src/info.cpp src/defines.hpp src/graphics.hpp src/info.hpp src/lbm.hpp src/lodepng.hpp src/opencl.hpp src/units.hpp src/utilities.hpp make.sh
 	@mkdir -p temp
-	$(CC) -c src/info.cpp -o temp/info_pic.o $(CFLAGS) -fPIC $(LDFLAGS_OPENCL)
+	$(CC) -c src/info.cpp -o temp/info_pic.o $(CFLAGS) -fPIC $(LIB_FLAGS) $(LDFLAGS_OPENCL)
 
 temp/kernel_pic.o: src/kernel.cpp src/kernel.hpp src/lodepng.hpp src/utilities.hpp
 	@mkdir -p temp
-	$(CC) -c src/kernel.cpp -o temp/kernel_pic.o $(CFLAGS) -fPIC
+	$(CC) -c src/kernel.cpp -o temp/kernel_pic.o $(CFLAGS) -fPIC $(LIB_FLAGS)
 
 temp/lbm_pic.o: src/lbm.cpp src/defines.hpp src/graphics.hpp src/info.hpp src/lbm.hpp src/lodepng.hpp src/opencl.hpp src/units.hpp src/utilities.hpp make.sh
 	@mkdir -p temp
-	$(CC) -c src/lbm.cpp -o temp/lbm_pic.o $(CFLAGS) -fPIC $(LDFLAGS_OPENCL)
+	$(CC) -c src/lbm.cpp -o temp/lbm_pic.o $(CFLAGS) -fPIC $(LIB_FLAGS) $(LDFLAGS_OPENCL)
 
 temp/lodepng_pic.o: src/lodepng.cpp src/lodepng.hpp
 	@mkdir -p temp
-	$(CC) -c src/lodepng.cpp -o temp/lodepng_pic.o $(CFLAGS) -fPIC
+	$(CC) -c src/lodepng.cpp -o temp/lodepng_pic.o $(CFLAGS) -fPIC $(LIB_FLAGS)
 
 temp/shapes_pic.o: src/shapes.cpp src/shapes.hpp src/utilities.hpp make.sh
 	@mkdir -p temp
-	$(CC) -c src/shapes.cpp -o temp/shapes_pic.o $(CFLAGS) -fPIC $(LDFLAGS_OPENCL)
+	$(CC) -c src/shapes.cpp -o temp/shapes_pic.o $(CFLAGS) -fPIC $(LIB_FLAGS) $(LDFLAGS_OPENCL)
 
 # Library object files list
 LIB_OBJS = temp/fluidx3d_c_api.o temp/graphics_pic.o temp/info_pic.o temp/kernel_pic.o temp/lbm_pic.o temp/lodepng_pic.o temp/shapes_pic.o
