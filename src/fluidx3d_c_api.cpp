@@ -14,6 +14,31 @@
 #include <cmath>
 
 /* ============================================================================
+ * Library Stub Functions
+ *
+ * When building as a library, we need to provide stub implementations for
+ * functions that the graphics system expects. These are normally provided
+ * by the user's main application.
+ * ============================================================================ */
+
+#ifdef GRAPHICS
+// These stubs are required when GRAPHICS is enabled but we're building a library
+// They prevent linker errors from graphics.cpp's main() function
+void main_label(const double frametime) {
+    // Stub - no label rendering in library mode
+    (void)frametime;
+}
+
+void main_graphics() {
+    // Stub - no custom graphics in library mode
+}
+
+void main_physics() {
+    // Stub - physics is driven by fx3d_lbm_run() in library mode
+}
+#endif // GRAPHICS
+
+/* ============================================================================
  * Internal Helpers
  * ============================================================================ */
 
@@ -257,6 +282,108 @@ void fx3d_lbm_u_read_from_device(fx3d_lbm lbm) {
     if (lbm) {
         reinterpret_cast<LBM*>(lbm)->u.read_from_device();
     }
+}
+
+/* ============================================================================
+ * Raw Pointer Access
+ * ============================================================================ */
+
+bool fx3d_lbm_is_multi_gpu(fx3d_lbm lbm) {
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        return l->get_D() > 1;
+    }
+    return false;
+}
+
+fx3d_f32* fx3d_lbm_get_rho_ptr(fx3d_lbm lbm) {
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        if (l->get_D() == 1) {
+            // Single GPU: direct access to underlying buffer
+            return l->lbm_domain[0]->rho.data();
+        }
+    }
+    return nullptr;
+}
+
+fx3d_f32* fx3d_lbm_get_ux_ptr(fx3d_lbm lbm) {
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        if (l->get_D() == 1) {
+            // Velocity stored as Structure of Arrays: [x0..xN, y0..yN, z0..zN]
+            return l->lbm_domain[0]->u.data();
+        }
+    }
+    return nullptr;
+}
+
+fx3d_f32* fx3d_lbm_get_uy_ptr(fx3d_lbm lbm) {
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        if (l->get_D() == 1) {
+            // Y component starts at offset N
+            return l->lbm_domain[0]->u.data() + l->get_N();
+        }
+    }
+    return nullptr;
+}
+
+fx3d_f32* fx3d_lbm_get_uz_ptr(fx3d_lbm lbm) {
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        if (l->get_D() == 1) {
+            // Z component starts at offset 2*N
+            return l->lbm_domain[0]->u.data() + 2 * l->get_N();
+        }
+    }
+    return nullptr;
+}
+
+fx3d_u8* fx3d_lbm_get_flags_ptr(fx3d_lbm lbm) {
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        if (l->get_D() == 1) {
+            return l->lbm_domain[0]->flags.data();
+        }
+    }
+    return nullptr;
+}
+
+fx3d_f32* fx3d_lbm_get_fx_ptr(fx3d_lbm lbm) {
+#ifdef FORCE_FIELD
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        if (l->get_D() == 1) {
+            return l->lbm_domain[0]->F.data();
+        }
+    }
+#endif
+    return nullptr;
+}
+
+fx3d_f32* fx3d_lbm_get_fy_ptr(fx3d_lbm lbm) {
+#ifdef FORCE_FIELD
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        if (l->get_D() == 1) {
+            return l->lbm_domain[0]->F.data() + l->get_N();
+        }
+    }
+#endif
+    return nullptr;
+}
+
+fx3d_f32* fx3d_lbm_get_fz_ptr(fx3d_lbm lbm) {
+#ifdef FORCE_FIELD
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        if (l->get_D() == 1) {
+            return l->lbm_domain[0]->F.data() + 2 * l->get_N();
+        }
+    }
+#endif
+    return nullptr;
 }
 
 /* ============================================================================
@@ -578,11 +705,151 @@ void fx3d_lbm_flags_write_vtk(fx3d_lbm lbm, const char* path) {
 }
 
 /* ============================================================================
+ * GPU-Accelerated Graphics API
+ * ============================================================================ */
+
+bool fx3d_graphics_available(void) {
+#ifdef GRAPHICS
+    return true;
+#else
+    return false;
+#endif
+}
+
+fx3d_u32 fx3d_graphics_get_width(void) {
+#ifdef GRAPHICS
+    return camera.width;
+#else
+    return 0;
+#endif
+}
+
+fx3d_u32 fx3d_graphics_get_height(void) {
+#ifdef GRAPHICS
+    return camera.height;
+#else
+    return 0;
+#endif
+}
+
+fx3d_i32* fx3d_graphics_draw_frame(fx3d_lbm lbm) {
+#ifdef GRAPHICS
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        return l->graphics.draw_frame();
+    }
+#endif
+    return nullptr;
+}
+
+void fx3d_graphics_set_visualization_modes(fx3d_lbm lbm, fx3d_i32 modes) {
+#ifdef GRAPHICS
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        l->graphics.visualization_modes = modes;
+    }
+#endif
+}
+
+fx3d_i32 fx3d_graphics_get_visualization_modes(fx3d_lbm lbm) {
+#ifdef GRAPHICS
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        return l->graphics.visualization_modes;
+    }
+#endif
+    return 0;
+}
+
+void fx3d_graphics_set_field_mode(fx3d_lbm lbm, fx3d_i32 mode) {
+#ifdef GRAPHICS
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        l->graphics.field_mode = mode;
+    }
+#endif
+}
+
+void fx3d_graphics_set_slice_mode(fx3d_lbm lbm, fx3d_i32 mode) {
+#ifdef GRAPHICS
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        l->graphics.slice_mode = mode;
+    }
+#endif
+}
+
+void fx3d_graphics_set_slice_position(fx3d_lbm lbm, fx3d_i32 x, fx3d_i32 y, fx3d_i32 z) {
+#ifdef GRAPHICS
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        l->graphics.slice_x = x;
+        l->graphics.slice_y = y;
+        l->graphics.slice_z = z;
+    }
+#endif
+}
+
+void fx3d_graphics_set_camera_centered(fx3d_lbm lbm, fx3d_f32 rx, fx3d_f32 ry, fx3d_f32 fov, fx3d_f32 zoom) {
+#ifdef GRAPHICS
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        l->graphics.set_camera_centered(rx, ry, fov, zoom);
+    }
+#endif
+}
+
+void fx3d_graphics_set_camera_free(fx3d_lbm lbm, fx3d_float3 position, fx3d_f32 rx, fx3d_f32 ry, fx3d_f32 fov) {
+#ifdef GRAPHICS
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        l->graphics.set_camera_free(to_float3(position), rx, ry, fov);
+    }
+#endif
+}
+
+void fx3d_graphics_write_frame_png(fx3d_lbm lbm, const char* path) {
+#ifdef GRAPHICS
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        l->graphics.write_frame_png(path ? string(path) : "");
+    }
+#endif
+}
+
+void fx3d_graphics_write_frame_bmp(fx3d_lbm lbm, const char* path) {
+#ifdef GRAPHICS
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        l->graphics.write_frame_bmp(path ? string(path) : "");
+    }
+#endif
+}
+
+void fx3d_graphics_write_frame_qoi(fx3d_lbm lbm, const char* path) {
+#ifdef GRAPHICS
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        l->graphics.write_frame_qoi(path ? string(path) : "");
+    }
+#endif
+}
+
+void fx3d_graphics_print_frame(fx3d_lbm lbm) {
+#ifdef GRAPHICS
+    if (lbm) {
+        LBM* l = reinterpret_cast<LBM*>(lbm);
+        l->graphics.print_frame();
+    }
+#endif
+}
+
+/* ============================================================================
  * Version Info
  * ============================================================================ */
 
 const char* fx3d_version(void) {
-    return "FluidX3D C API v1.0.0";
+    return "FluidX3D C API v1.1.0";
 }
 
 } /* extern "C" */

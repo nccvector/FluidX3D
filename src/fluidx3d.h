@@ -215,6 +215,71 @@ void fx3d_lbm_u_write_to_device(fx3d_lbm lbm);
 void fx3d_lbm_u_read_from_device(fx3d_lbm lbm);
 
 /* ============================================================================
+ * Raw Pointer Access (for efficient visualization)
+ *
+ * These functions return raw pointers to the underlying data arrays.
+ * IMPORTANT: Only valid for single-GPU simulations. Check with fx3d_lbm_is_multi_gpu().
+ * IMPORTANT: Call the appropriate read_from_device() function first to ensure data is current.
+ * ============================================================================ */
+
+/**
+ * Check if simulation uses multiple GPUs.
+ * Raw pointer access is only valid for single-GPU simulations.
+ */
+bool fx3d_lbm_is_multi_gpu(fx3d_lbm lbm);
+
+/**
+ * Get raw pointer to density array.
+ * Layout: rho[n] where n = x + (y + z*Ny)*Nx
+ * @return Pointer to float array of size N, or NULL if multi-GPU
+ */
+fx3d_f32* fx3d_lbm_get_rho_ptr(fx3d_lbm lbm);
+
+/**
+ * Get raw pointer to velocity X component array.
+ * Layout: ux[n] where n = x + (y + z*Ny)*Nx
+ * @return Pointer to float array of size N, or NULL if multi-GPU
+ */
+fx3d_f32* fx3d_lbm_get_ux_ptr(fx3d_lbm lbm);
+
+/**
+ * Get raw pointer to velocity Y component array.
+ * Layout: uy[n] where n = x + (y + z*Ny)*Nx
+ * @return Pointer to float array of size N, or NULL if multi-GPU
+ */
+fx3d_f32* fx3d_lbm_get_uy_ptr(fx3d_lbm lbm);
+
+/**
+ * Get raw pointer to velocity Z component array.
+ * Layout: uz[n] where n = x + (y + z*Ny)*Nx
+ * @return Pointer to float array of size N, or NULL if multi-GPU
+ */
+fx3d_f32* fx3d_lbm_get_uz_ptr(fx3d_lbm lbm);
+
+/**
+ * Get raw pointer to flags array.
+ * Layout: flags[n] where n = x + (y + z*Ny)*Nx
+ * @return Pointer to uint8 array of size N, or NULL if multi-GPU
+ */
+fx3d_u8* fx3d_lbm_get_flags_ptr(fx3d_lbm lbm);
+
+/**
+ * Get raw pointer to force X component array (requires FORCE_FIELD).
+ * @return Pointer to float array of size N, or NULL if multi-GPU or no FORCE_FIELD
+ */
+fx3d_f32* fx3d_lbm_get_fx_ptr(fx3d_lbm lbm);
+
+/**
+ * Get raw pointer to force Y component array (requires FORCE_FIELD).
+ */
+fx3d_f32* fx3d_lbm_get_fy_ptr(fx3d_lbm lbm);
+
+/**
+ * Get raw pointer to force Z component array (requires FORCE_FIELD).
+ */
+fx3d_f32* fx3d_lbm_get_fz_ptr(fx3d_lbm lbm);
+
+/* ============================================================================
  * Force Field API (requires FORCE_FIELD extension)
  * ============================================================================ */
 
@@ -505,6 +570,152 @@ void fx3d_lbm_u_write_vtk(fx3d_lbm lbm, const char* path);
  * Export flags field to VTK file.
  */
 void fx3d_lbm_flags_write_vtk(fx3d_lbm lbm, const char* path);
+
+/* ============================================================================
+ * GPU-Accelerated Graphics API (requires GRAPHICS extension)
+ *
+ * These functions provide efficient GPU-side rendering. The simulation data
+ * stays on GPU and is rendered there - only the final bitmap is transferred
+ * to CPU. This is ~250x more efficient than transferring raw velocity data.
+ * ============================================================================ */
+
+/**
+ * Check if graphics support is available.
+ * @return true if GRAPHICS extension was compiled in
+ */
+bool fx3d_graphics_available(void);
+
+/**
+ * Get the width of the rendered frame.
+ * @return Width in pixels (default: 1920)
+ */
+fx3d_u32 fx3d_graphics_get_width(void);
+
+/**
+ * Get the height of the rendered frame.
+ * @return Height in pixels (default: 1080)
+ */
+fx3d_u32 fx3d_graphics_get_height(void);
+
+/**
+ * Render a frame using GPU acceleration.
+ * This performs all rendering on GPU and transfers only the final bitmap to CPU.
+ *
+ * @param lbm Handle to the LBM simulation
+ * @return Pointer to BGRA pixel data (width * height * 4 bytes), or NULL if graphics unavailable
+ *         Pixel format: 0xAARRGGBB (8 bits per channel)
+ *         The pointer is valid until the next draw_frame() call.
+ */
+fx3d_i32* fx3d_graphics_draw_frame(fx3d_lbm lbm);
+
+/**
+ * Set visualization mode flags.
+ * Combine flags with bitwise OR, e.g.: FX3D_VIS_FLAG_LATTICE | FX3D_VIS_FIELD
+ *
+ * @param lbm Handle to the LBM simulation
+ * @param modes Bitwise OR of FX3D_VIS_* flags
+ */
+void fx3d_graphics_set_visualization_modes(fx3d_lbm lbm, fx3d_i32 modes);
+
+/**
+ * Get current visualization mode flags.
+ */
+fx3d_i32 fx3d_graphics_get_visualization_modes(fx3d_lbm lbm);
+
+/**
+ * Set field visualization mode.
+ *
+ * @param lbm Handle to the LBM simulation
+ * @param mode 0=velocity, 1=density, 2=temperature
+ */
+void fx3d_graphics_set_field_mode(fx3d_lbm lbm, fx3d_i32 mode);
+
+/**
+ * Set slice visualization mode.
+ *
+ * @param lbm Handle to the LBM simulation
+ * @param mode 0=no slice, 1=x, 2=y, 3=z, 4=xz, 5=xyz, 6=yz, 7=xy
+ */
+void fx3d_graphics_set_slice_mode(fx3d_lbm lbm, fx3d_i32 mode);
+
+/**
+ * Set slice positions.
+ *
+ * @param lbm Handle to the LBM simulation
+ * @param x X slice position
+ * @param y Y slice position
+ * @param z Z slice position
+ */
+void fx3d_graphics_set_slice_position(fx3d_lbm lbm, fx3d_i32 x, fx3d_i32 y, fx3d_i32 z);
+
+/**
+ * Set camera to centered/orbit mode.
+ * Camera orbits around the center of the simulation box.
+ *
+ * @param lbm Handle to the LBM simulation
+ * @param rx Rotation around X axis (radians)
+ * @param ry Rotation around Y axis (radians)
+ * @param fov Field of view (degrees, default: 100)
+ * @param zoom Zoom factor (default: 1.0)
+ */
+void fx3d_graphics_set_camera_centered(fx3d_lbm lbm, fx3d_f32 rx, fx3d_f32 ry, fx3d_f32 fov, fx3d_f32 zoom);
+
+/**
+ * Set camera to free mode at specific position.
+ *
+ * @param lbm Handle to the LBM simulation
+ * @param position Camera position in lattice coordinates
+ * @param rx Rotation around X axis (radians)
+ * @param ry Rotation around Y axis (radians)
+ * @param fov Field of view (degrees, default: 100)
+ */
+void fx3d_graphics_set_camera_free(fx3d_lbm lbm, fx3d_float3 position, fx3d_f32 rx, fx3d_f32 ry, fx3d_f32 fov);
+
+/**
+ * Write current frame to PNG file.
+ *
+ * @param lbm Handle to the LBM simulation
+ * @param path Output file path (without extension)
+ */
+void fx3d_graphics_write_frame_png(fx3d_lbm lbm, const char* path);
+
+/**
+ * Write current frame to BMP file (faster than PNG).
+ *
+ * @param lbm Handle to the LBM simulation
+ * @param path Output file path (without extension)
+ */
+void fx3d_graphics_write_frame_bmp(fx3d_lbm lbm, const char* path);
+
+/**
+ * Write current frame to QOI file (fast, small file size).
+ *
+ * @param lbm Handle to the LBM simulation
+ * @param path Output file path (without extension)
+ */
+void fx3d_graphics_write_frame_qoi(fx3d_lbm lbm, const char* path);
+
+/**
+ * Print ASCII preview of current frame to console.
+ *
+ * @param lbm Handle to the LBM simulation
+ */
+void fx3d_graphics_print_frame(fx3d_lbm lbm);
+
+/* Field mode constants */
+#define FX3D_FIELD_VELOCITY    0
+#define FX3D_FIELD_DENSITY     1
+#define FX3D_FIELD_TEMPERATURE 2
+
+/* Slice mode constants */
+#define FX3D_SLICE_NONE 0
+#define FX3D_SLICE_X    1
+#define FX3D_SLICE_Y    2
+#define FX3D_SLICE_Z    3
+#define FX3D_SLICE_XZ   4
+#define FX3D_SLICE_XYZ  5
+#define FX3D_SLICE_YZ   6
+#define FX3D_SLICE_XY   7
 
 /* ============================================================================
  * Version Info

@@ -801,7 +801,7 @@ int main(int argc, char* argv[]) {
 
 #endif // INTERACTIVE_GRAPHICS_ASCII
 
-#if !defined(INTERACTIVE_GRAPHICS) && !defined(INTERACTIVE_GRAPHICS_ASCII)
+#if !defined(INTERACTIVE_GRAPHICS) && !defined(INTERACTIVE_GRAPHICS_ASCII) && !defined(FX3D_LIBRARY)
 
 int main(int argc, char* argv[]) {
 	main_arguments = get_main_arguments(argc, argv);
@@ -817,5 +817,5 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
-#endif // no INTERACTIVE_GRAPHICS and no INTERACTIVE_GRAPHICS_ASCII
+#endif // no INTERACTIVE_GRAPHICS and no INTERACTIVE_GRAPHICS_ASCII and no FX3D_LIBRARY
 #endif // GRAPHICS
