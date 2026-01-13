@@ -139,9 +139,66 @@ lib:
 	@echo "\033[91mError\033[0m: Please select one of these targets: make lib-Linux-X11, make lib-Linux, make lib-macOS"
 
 # ============================================================================
+# Test/Demo Targets (C API)
+# ============================================================================
+
+# SDL2 paths (macOS Homebrew)
+SDL2_CFLAGS = -I/opt/homebrew/opt/sdl2/include
+SDL2_LIBS = -L/opt/homebrew/opt/sdl2/lib -lSDL2
+
+# Demo executables
+DEMO_CFLAGS = -I./lib -L./lib -lfluidx3d -framework OpenCL -lc++ -Wl,-rpath,./lib
+
+.PHONY: demos demo-test demo-vortex demo-gpu demo-viewer run-test run-vortex run-gpu run-viewer
+
+# Build all demos
+demos: test/test_c_api test/demo_vortex test/demo_gpu_graphics test/demo_viewer
+	@echo "\033[92mAll demos built!\033[0m"
+
+# Individual demo builds (requires lib to be built first with: make lib-macOS)
+test/test_c_api: test/test_c_api.c lib/fluidx3d.h
+	@test -f lib/libfluidx3d.dylib || (echo "\033[91mError:\033[0m Run 'make lib-macOS' first" && exit 1)
+	clang -o $@ $< $(DEMO_CFLAGS)
+
+test/demo_vortex: test/demo_vortex.c lib/fluidx3d.h
+	@test -f lib/libfluidx3d.dylib || (echo "\033[91mError:\033[0m Run 'make lib-macOS' first" && exit 1)
+	clang -o $@ $< $(DEMO_CFLAGS)
+
+test/demo_gpu_graphics: test/demo_gpu_graphics.c lib/fluidx3d.h
+	@test -f lib/libfluidx3d.dylib || (echo "\033[91mError:\033[0m Run 'make lib-macOS' first" && exit 1)
+	clang -o $@ $< $(DEMO_CFLAGS)
+
+test/demo_viewer: test/demo_viewer.c lib/fluidx3d.h
+	@test -f lib/libfluidx3d.dylib || (echo "\033[91mError:\033[0m Run 'make lib-macOS' first" && exit 1)
+	clang -o $@ $< $(DEMO_CFLAGS) $(SDL2_CFLAGS) $(SDL2_LIBS)
+
+# Run targets
+run-test: test/test_c_api
+	DYLD_LIBRARY_PATH=./lib ./test/test_c_api
+
+run-vortex: test/demo_vortex
+	DYLD_LIBRARY_PATH=./lib ./test/demo_vortex
+
+run-gpu: test/demo_gpu_graphics
+	@mkdir -p output
+	DYLD_LIBRARY_PATH=./lib ./test/demo_gpu_graphics
+
+run-viewer: test/demo_viewer
+	DYLD_LIBRARY_PATH=./lib ./test/demo_viewer
+
+# Convenience aliases
+demo-test: run-test
+demo-vortex: run-vortex
+demo-gpu: run-gpu
+demo-viewer: run-viewer
+
+# ============================================================================
 # Clean
 # ============================================================================
 
-.PHONY: clean
+.PHONY: clean clean-demos
 clean:
-	@rm -rf temp bin/FluidX3D lib/
+	@rm -rf temp bin/FluidX3D lib/ output/
+
+clean-demos:
+	@rm -f test/test_c_api test/demo_vortex test/demo_gpu_graphics test/demo_viewer
